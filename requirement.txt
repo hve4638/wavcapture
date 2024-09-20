@@ -1,0 +1,9 @@
+torchaudio
+scipy
+matplotlib
+pillow
+librosa
+numpy<2.0
+PySoundFile
+spafe
+numba

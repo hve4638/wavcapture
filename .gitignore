@@ -1,0 +1,11 @@
+# venv
+/.env
+
+/export
+/target
+*.wav
+
+/test.py
+/lfcc.py
+
+__pycache__/
