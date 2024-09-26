@@ -5,9 +5,10 @@ from wavparser import WavCapture
 parser = argparse.ArgumentParser()
 
 parser.add_argument('filename')
-#parser.add_argument('--waveform', action='store_true')
 #parser.add_argument('--mfcc', action='store_true')
 parser.add_argument('-c', '--cpu', action='store_true')
+parser.add_argument('--legacy', action='store_true')
+
 parser.add_argument('-a', '--analyze', action='store_true')
 parser.add_argument('-z', '--zoom', type=int, default=1)
 parser.add_argument('-O', '--output', default='export')
@@ -51,6 +52,7 @@ def main():
                 height=args.height,
                 export_directory=args.output,
                 use_gpu=not args.cpu,
+                use_legacy=args.legacy,
             )
         
         if args.analyze:
@@ -65,7 +67,9 @@ def main():
         interval = Decimal(args.interval)
         increment = interval - Decimal(args.overlap)
 
-        if wav.use_gpu:
+        if wav.use_legacy:
+            print('use Legacy (lib)')
+        elif wav.use_cuda:
             print('use CUDA')
         else:
             print('use CPU')

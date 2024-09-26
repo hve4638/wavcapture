@@ -8,9 +8,19 @@ from multiprocessing import Pool, Process, Queue
 from .timer import Timer
 from numba import cuda
 from . import waveform
+import matplotlib.pyplot as plt
 
-def capture_waveform(data, filename, width, height, use_gpu=False):
-    if use_gpu:
+def capture_waveform(data, filename, width, height, use_gpu=False, use_legacy=False):
+    if use_legacy:
+        time_axis =  np.linspace(0, 10, num=len(data))
+        plt.figure(figsize=(10, 4))
+        plt.plot(time_axis, data)
+        plt.xlabel("Time")
+        plt.ylabel("Amplitude")
+        plt.grid()
+        plt.savefig(filename)
+        return
+    elif use_gpu:
         pixels = waveform.cuda_make(data, width, height)
     else:
         pixels = waveform.make(data, width, height)
@@ -19,7 +29,7 @@ def capture_waveform(data, filename, width, height, use_gpu=False):
     final_image.save(filename)
 
 class WavCapture:
-    def __init__(self, filename, *, width, height, export_directory = 'export', verbose=True, use_gpu=False):
+    def __init__(self, filename, *, width, height, export_directory = 'export', verbose=True, use_gpu=False, use_legacy=False):
         sample_rate, data = wavfile.read(filename)
         self.sample_rate = sample_rate
         self.data = data
@@ -29,16 +39,18 @@ class WavCapture:
         self.processes = []
         self.duration = data.shape[0] / self.sample_rate
         self.verbose = verbose
-        self.use_gpu = use_gpu
 
+        self.use_legacy = use_legacy
+
+        if self.use_legacy:
+            pass
+
+        self.use_cuda = False
         if use_gpu:
             if cuda.is_available():
                 self.use_cuda = True
             else:
                 sys.stderr.write('CUDA is not available. Using CPU instead.\n')
-                self.use_cuda = False
-        else:
-            self.use_cuda = False
 
         if self.verbose:
             print('sample_rate :', sample_rate)
@@ -94,7 +106,7 @@ class WavCapture:
     
     def capture_async(self, filename, start_time, end_time):
         cutdata = self.__cut(start_time, end_time)
-        p = Process(target=capture_waveform, args=(cutdata, f'{self.export_directory}\\{filename}', self.width-1, self.height, self.use_gpu))
+        p = Process(target=capture_waveform, args=(cutdata, f'{self.export_directory}\\{filename}', self.width-1, self.height, self.use_cuda, self.use_legacy))
         p.start()
         self.processes.append(p)
 
