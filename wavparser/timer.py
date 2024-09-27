@@ -1,8 +1,9 @@
 import time
 
 class Timer:
-    def __init__(self, messgage='Time'):
+    def __init__(self, messgage='Time', silence=False):
         self.message = messgage
+        self.silence = silence
     
     def show(self, message='Time'):
         t = time.time() - self.start
@@ -13,7 +14,8 @@ class Timer:
         return self
     
     def __exit__(self, type, value, traceback):
-        self.show(self.message)
+        if not self.silence:
+            self.show(self.message)
     
     @property
     def time(self):

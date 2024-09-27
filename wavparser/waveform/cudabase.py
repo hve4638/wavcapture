@@ -1,6 +1,6 @@
 import numpy as np
 from numba import cuda
-
+    
 @cuda.jit
 def draw_pixel(data, time, pixels, height):
     index = cuda.grid(1) * 2
@@ -16,7 +16,9 @@ def draw_pixel(data, time, pixels, height):
         miny = min(y, py)
         maxy = max(y, py)
 
-        if px == x:
+        if pixels[miny, px] == 0 and pixels[maxy, x] == 0:
+            pass
+        elif px == x:
             for i in range(miny, maxy+1):
                 pixels[i, x] = 0
         else:

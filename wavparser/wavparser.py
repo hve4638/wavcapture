@@ -11,22 +11,27 @@ from . import waveform
 import matplotlib.pyplot as plt
 
 def capture_waveform(data, filename, width, height, use_gpu=False, use_legacy=False):
-    if use_legacy:
-        time_axis =  np.linspace(0, 10, num=len(data))
-        plt.figure(figsize=(10, 4))
-        plt.plot(time_axis, data)
-        plt.xlabel("Time")
-        plt.ylabel("Amplitude")
-        plt.grid()
-        plt.savefig(filename)
-        return
-    elif use_gpu:
-        pixels = waveform.cuda_make(data, width, height)
-    else:
-        pixels = waveform.make(data, width, height)
-    
-    final_image = Image.fromarray(pixels)
-    final_image.save(filename)
+    with Timer('capture_waveform: ' + filename, silence=True):
+        if use_legacy:
+            time_axis =  np.linspace(0, 10, num=len(data))
+            plt.figure(figsize=(10, 4))
+            plt.plot(time_axis, data)
+            plt.xlabel("")
+            plt.ylabel("")
+            plt.xticks([])
+            plt.yticks([])
+            plt.grid()
+            plt.savefig(filename, bbox_inches='tight', pad_inches=0)
+            return
+        elif use_gpu:
+            
+            pixels = waveform.cuda_make(data, width, height)
+            #pixels = waveform.cuda_make(data, width, height)
+        else:
+            pixels = waveform.make(data, width, height)
+        
+        final_image = Image.fromarray(pixels)
+        final_image.save(filename)
 
 class WavCapture:
     def __init__(self, filename, *, width, height, export_directory = 'export', verbose=True, use_gpu=False, use_legacy=False):
@@ -106,9 +111,12 @@ class WavCapture:
     
     def capture_async(self, filename, start_time, end_time):
         cutdata = self.__cut(start_time, end_time)
-        p = Process(target=capture_waveform, args=(cutdata, f'{self.export_directory}\\{filename}', self.width-1, self.height, self.use_cuda, self.use_legacy))
-        p.start()
-        self.processes.append(p)
+        
+        capture_waveform(cutdata, f'{self.export_directory}\\{filename}', self.width-1, self.height, self.use_cuda, self.use_legacy)
+        
+        #p = Process(target=capture_waveform, args=(cutdata, f'{self.export_directory}\\{filename}', self.width-1, self.height, self.use_cuda, self.use_legacy))
+        #p.start()
+        #self.processes.append(p)
 
     def wait(self):
         for p in self.processes:
