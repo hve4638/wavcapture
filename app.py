@@ -52,6 +52,7 @@ def main():
             wav = WavCapture(args.filename,
                 width=args.width,
                 height=args.height,
+                zoom=args.zoom,
                 export_directory=args.output,
                 use_gpu=not args.cpu,
                 use_legacy=args.legacy,
@@ -68,10 +69,10 @@ def main():
         interval = Decimal(args.interval)
         increment = interval - Decimal(args.overlap)
         
-        wav.cut(pos, posEnd)
+        wav.cut(0, posEnd)
 
-        with Timer('Resize'):
-            wav.resize(args.height*args.zoom)
+        # with Timer('Resize'):
+        #     wav.resize(args.height*args.zoom)
 
         if wav.use_legacy:
             print('use Legacy (lib)')

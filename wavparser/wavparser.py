@@ -9,40 +9,18 @@ from .timer import Timer
 from numba import cuda
 from . import waveform
 import matplotlib.pyplot as plt
-from .capture import capture_cpu
+from .capture import capture_cpu, capture_matplotlib
 
 def capture_waveform_cuda(data, filename, width, height):
     pixels = waveform.cuda_make(data, width, height)
     final_image = Image.fromarray(pixels)
     final_image.save(filename)
 
-def capture_waveform(data, filename, width, height, use_gpu=False, use_legacy=False):
-    with Timer('capture_waveform: ' + filename, silence=True):
-        if use_legacy:
-            time_axis =  np.linspace(0, 10, num=len(data))
-            plt.figure(figsize=(10, 4))
-            plt.plot(time_axis, data)
-            plt.xlabel("")
-            plt.ylabel("")
-            plt.xticks([])
-            plt.yticks([])
-            plt.grid()
-            plt.savefig(filename, bbox_inches='tight', pad_inches=0)
-            return
-        elif use_gpu:
-            
-            pixels = waveform.cuda_make(data, width, height)
-            #pixels = waveform.cuda_make(data, width, height)
-        else:
-            pixels = waveform.make(data, width, height)
-        
-        final_image = Image.fromarray(pixels)
-        final_image.save(filename)
-
 class WavCapture:
     def __init__(self, filename, *,
                  width,
                  height,
+                 zoom,
                  export_directory = 'export',
                  verbose=True,
                  use_gpu=False,
@@ -55,14 +33,16 @@ class WavCapture:
         self.data = data
         self.width = width
         self.height = height
+        self.zoom = zoom
         self.fast = fast
         self.export_directory = export_directory
         self.processes = []
         self.duration = data.shape[0] / self.sample_rate
         self.verbose = verbose
         self.single_thread = single_thread
-
         self.use_legacy = use_legacy
+
+        self.resize_to = height * zoom
 
         if self.use_legacy:
             pass
@@ -74,6 +54,9 @@ class WavCapture:
                 self.single_thread = True
             else:
                 sys.stderr.write('CUDA is not available. Using CPU instead.\n')
+
+        if self.fast:
+            self.single_thread = True
 
         if self.verbose:
             print('sample_rate :', sample_rate)
@@ -137,9 +120,13 @@ class WavCapture:
         if self.use_cuda:
             capture_waveform_cuda(cutdata, f'{self.export_directory}\\{filename}', self.width-1, self.height)
         elif self.single_thread:
-            capture_cpu(cutdata, filename, self.width-1, self.height, self.fast)
+            capture_cpu(cutdata, filename, self.width-1, self.height, self.resize_to, self.fast)
         else:
-            p = Process(target=capture_cpu, args=(cutdata, filename, self.width-1, self.height, self.fast))
+            if self.use_legacy:
+                target = capture_matplotlib
+            else:
+                target = capture_cpu
+            p = Process(target=target, args=(cutdata, filename, self.width-1, self.height, self.resize_to, self.fast))
             p.start()
             self.processes.append(p)
     
