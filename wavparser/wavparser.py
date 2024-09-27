@@ -9,6 +9,12 @@ from .timer import Timer
 from numba import cuda
 from . import waveform
 import matplotlib.pyplot as plt
+from .capture import capture_cpu
+
+def capture_waveform_cuda(data, filename, width, height):
+    pixels = waveform.cuda_make(data, width, height)
+    final_image = Image.fromarray(pixels)
+    final_image.save(filename)
 
 def capture_waveform(data, filename, width, height, use_gpu=False, use_legacy=False):
     with Timer('capture_waveform: ' + filename, silence=True):
@@ -34,16 +40,27 @@ def capture_waveform(data, filename, width, height, use_gpu=False, use_legacy=Fa
         final_image.save(filename)
 
 class WavCapture:
-    def __init__(self, filename, *, width, height, export_directory = 'export', verbose=True, use_gpu=False, use_legacy=False):
+    def __init__(self, filename, *,
+                 width,
+                 height,
+                 export_directory = 'export',
+                 verbose=True,
+                 use_gpu=False,
+                 use_legacy=False,
+                 fast=False,
+                 single_thread=False
+                 ):
         sample_rate, data = wavfile.read(filename)
         self.sample_rate = sample_rate
         self.data = data
         self.width = width
         self.height = height
+        self.fast = fast
         self.export_directory = export_directory
         self.processes = []
         self.duration = data.shape[0] / self.sample_rate
         self.verbose = verbose
+        self.single_thread = single_thread
 
         self.use_legacy = use_legacy
 
@@ -54,6 +71,7 @@ class WavCapture:
         if use_gpu:
             if cuda.is_available():
                 self.use_cuda = True
+                self.single_thread = True
             else:
                 sys.stderr.write('CUDA is not available. Using CPU instead.\n')
 
@@ -63,6 +81,9 @@ class WavCapture:
             print(f'duration : {self.duration}s')
             print()
         os.makedirs(export_directory, exist_ok=True)
+
+    def cut(self, start_time, end_time):
+        self.data = self.__cut(start_time, end_time)
 
     def resize(self, to_height):
         if self.use_cuda:
@@ -111,13 +132,17 @@ class WavCapture:
     
     def capture_async(self, filename, start_time, end_time):
         cutdata = self.__cut(start_time, end_time)
+        filename = f'{self.export_directory}\\{filename}'
         
-        capture_waveform(cutdata, f'{self.export_directory}\\{filename}', self.width-1, self.height, self.use_cuda, self.use_legacy)
-        
-        #p = Process(target=capture_waveform, args=(cutdata, f'{self.export_directory}\\{filename}', self.width-1, self.height, self.use_cuda, self.use_legacy))
-        #p.start()
-        #self.processes.append(p)
-
+        if self.use_cuda:
+            capture_waveform_cuda(cutdata, f'{self.export_directory}\\{filename}', self.width-1, self.height)
+        elif self.single_thread:
+            capture_cpu(cutdata, filename, self.width-1, self.height, self.fast)
+        else:
+            p = Process(target=capture_cpu, args=(cutdata, filename, self.width-1, self.height, self.fast))
+            p.start()
+            self.processes.append(p)
+    
     def wait(self):
         for p in self.processes:
             p.join()

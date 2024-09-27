@@ -8,6 +8,8 @@ parser.add_argument('filename')
 #parser.add_argument('--mfcc', action='store_true')
 parser.add_argument('-c', '--cpu', action='store_true')
 parser.add_argument('--legacy', action='store_true')
+parser.add_argument('--fast', action='store_true')
+parser.add_argument('--st', action='store_true') # single thread
 
 parser.add_argument('-a', '--analyze', action='store_true')
 parser.add_argument('-z', '--zoom', type=int, default=1)
@@ -53,19 +55,23 @@ def main():
                 export_directory=args.output,
                 use_gpu=not args.cpu,
                 use_legacy=args.legacy,
+                fast=args.fast,
+                single_thread=args.st
             )
         
         if args.analyze:
             wav.analyze()
             return
-
-        with Timer('Resize'):
-            wav.resize(args.height*args.zoom)
         
         pos = Decimal(args.start)
         posEnd = Decimal(args.end if args.end > 0 else wav.duration)
         interval = Decimal(args.interval)
         increment = interval - Decimal(args.overlap)
+        
+        wav.cut(pos, posEnd)
+
+        with Timer('Resize'):
+            wav.resize(args.height*args.zoom)
 
         if wav.use_legacy:
             print('use Legacy (lib)')
